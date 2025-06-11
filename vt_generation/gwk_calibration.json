@@ -1,0 +1,14 @@
+{
+    "basis": "quadratic_Mc_eta",
+    "coeffs": [
+        133.65628620462888,
+        0.824063817123629,
+        0.022642664895751174,
+        1.635852123849066,
+        -0.030873543735042964,
+        1625.870793745771
+    ],
+    "m_min": 3.0,
+    "type": "PopModelsCalibratedVolumeTimeSensitivity",
+    "zero_spin": true
+}
