@@ -232,7 +232,7 @@ def main():
         )
         f.attrs["waveform"] = "IMRPhenomPv2"
         f.attrs["sensitivity"] = "SimNoisePSDaLIGO175MpcT1800545"
-        f.create_dataset("names", data=np.array(["mass_1_source", "mass_2_source", "a_1", "a_2", "redshift"]))
+        f.create_dataset("names", data=np.array(["mass_1_source", "mass_2_source", "a_1", "a_2", "redshift"], dtype="S"))
         f.create_dataset("mass_1_source", data=m1s)
         f.create_dataset("mass_2_source", data=m2s)
         f.create_dataset("a_1", data=a1zs)
