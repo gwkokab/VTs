@@ -12,8 +12,8 @@ import h5py
 import lal
 import lalsimulation as ls
 import numpy as np
-from scipy.interpolate import interp1d
 from tqdm import tqdm
+
 
 # Constants and configuration
 sensitivity = ls.SimNoisePSDaLIGO175MpcT1800545  # Power spectral density model
@@ -55,37 +55,56 @@ def optimal_snr(
     :return: The SNR of a face-on, overhead source.
     """
     psd_fn = psd_fn or sensitivity
-    approximant = approximant or waveform 
+    approximant = approximant or waveform
     # https://lscsoft.docs.ligo.org/lalsuite/lalsimulation/group___l_a_l_sim_i_m_r_phenom__c.html
 
-
     # Redshifted masses and distance
-    dL = planck.luminosity_distance(z).to(u.Gpc).value # Luminosity distance in Gpc
+    dL = planck.luminosity_distance(z).to(u.Gpc).value  # Luminosity distance in Gpc
     m1z, m2z = m1 * (1 + z), m2 * (1 + z)
 
     # Determine frequency resolution from estimated waveform duration
-    tmax = ls.SimInspiralChirpTimeBound(fmin, m1z * lal.MSUN_SI, m2z * lal.MSUN_SI, a1z, a2z) + 2.0
+    tmax = (
+        ls.SimInspiralChirpTimeBound(
+            fmin, m1z * lal.MSUN_SI, m2z * lal.MSUN_SI, a1z, a2z
+        )
+        + 2.0
+    )
     df = max(1.0 / next_pow_two(tmax), dfmin)
     fmax = 2048.0  # Nyquist frequency # Hz --- based on max freq of 5-5 inspiral
 
-
     # Generate the frequency-domain waveform
     hp, _ = ls.SimInspiralChooseFDWaveform(
-        m1z * lal.MSUN_SI, m2z * lal.MSUN_SI, # source-frame masses in SI units
-        0.0, 0.0, a1z, 0.0, 0.0, a2z, # spins in dimensionless units
-        dL * 1e9 * lal.PC_SI, # distance in SI units (Gpc to m)
-        0.0, 0.0, 0.0, # inclination, polarization, and phase
-        ecc, 0.0,  # eccentricity and mean anomaly
-        df, fmin, fmax, fref, # frequency resolution, min and max frequencies, reference frequency
-        None, approximant # waveform approximant
+        m1z * lal.MSUN_SI,
+        m2z * lal.MSUN_SI,  # source-frame masses in SI units
+        0.0,
+        0.0,
+        a1z,
+        0.0,
+        0.0,
+        a2z,  # spins in dimensionless units
+        dL * 1e9 * lal.PC_SI,  # distance in SI units (Gpc to m)
+        0.0,
+        0.0,
+        0.0,  # inclination, polarization, and phase
+        ecc,
+        0.0,  # eccentricity and mean anomaly
+        df,
+        fmin,
+        fmax,
+        fref,  # frequency resolution, min and max frequencies, reference frequency
+        None,
+        approximant,  # waveform approximant
     )
 
     # Construct PSD and compute matched-filter SNR
     Nf = int(round(fmax / df)) + 1
-    psd = lal.CreateREAL8FrequencySeries("psd", 0, 0.0, df, lal.DimensionlessUnit, Nf) # Create frequency series for PSD, unit 1/Hz
+    psd = lal.CreateREAL8FrequencySeries(
+        "psd", 0, 0.0, df, lal.DimensionlessUnit, Nf
+    )  # Create frequency series for PSD, unit 1/Hz
     psd_fn(psd, psdstart)
 
-    return ls.MeasureSNRFD(hp, psd, psdstart, -1.0) # Compute matched-filter SNR
+    return ls.MeasureSNRFD(hp, psd, psdstart, -1.0)  # Compute matched-filter SNR
+
 
 # Computing p_{det}. This is the probability of detection of a signal
 def fraction_above_threshold(
@@ -106,7 +125,7 @@ def fraction_above_threshold(
     r"""
     Computes
     .. math::
-        p_{det} using analytical approximation. 
+        p_{det} using analytical approximation.
 
     :param m1: Source-frame mass 1.
     :param m2: Source-frame mass 2.
@@ -120,25 +139,27 @@ def fraction_above_threshold(
     :param approximant: Approximant
     :return: Fraction of time above threshold
     """
-    if z == 0.0: #overhead source
-        return 1.0 # If redshift is zero, the source is at the observer's frame, so detection probability is 1.0
+    if z == 0.0:  # overhead source
+        return 1.0  # If redshift is zero, the source is at the observer's frame, so detection probability is 1.0
 
-    rho_max = optimal_snr(m1, m2, a1z, a2z, z, ecc, fmin, dfmin, fref, psdstart, psd_fn, approximant)
+    rho_max = optimal_snr(
+        m1, m2, a1z, a2z, z, ecc, fmin, dfmin, fref, psdstart, psd_fn, approximant
+    )
     w = snr_thresh / rho_max
     if w > 1.0:
-        return 0.0 # If the threshold is greater than the maximum SNR, return 0, no detection. 
+        return 0.0  # If the threshold is greater than the maximum SNR, return 0, no detection.
 
     # Detection probability polynomial fit coefficients
     # approximation for the detection from Richard O'Shaughnessy et al. 2010
     else:
         a2, a4, a8 = 0.374222, 2.04216, -2.63948
         Pdet = (
-            a2 * (1 - w) ** 2 +
-            a4 * (1 - w) ** 4 +
-            a8 * (1 - w) ** 8 +
-            (1 - a2 - a4 - a8) * (1 - w) ** 10
+            a2 * (1 - w) ** 2
+            + a4 * (1 - w) ** 4
+            + a8 * (1 - w) ** 8
+            + (1 - a2 - a4 - a8) * (1 - w) ** 10
         )
-    return Pdet 
+    return Pdet
 
 
 def pdet_from_mass_spin(
@@ -160,7 +181,19 @@ def pdet_from_mass_spin(
     Wrapper function to compute the detection probability for one binary.
     """
     return fraction_above_threshold(
-        m1, m2, a1z, a2z, z, ecc, thresh, fmin, dfmin, fref, psdstart, psd_fn, approximant
+        m1,
+        m2,
+        a1z,
+        a2z,
+        z,
+        ecc,
+        thresh,
+        fmin,
+        dfmin,
+        fref,
+        psdstart,
+        psd_fn,
+        approximant,
     )
 
 
@@ -180,11 +213,7 @@ def pdets_from_masses_spins(
 
     # Build argument list for parallel processing
     args = [
-        (
-            m1, m2, a1, a2, ecc, z,
-            thresh, 19.0, 0.0, 40.0, 20.0,
-            psd_fn, waveform
-        )
+        (m1, m2, a1, a2, ecc, z, thresh, 19.0, 0.0, 40.0, 20.0, psd_fn, waveform)
         for m1, m2, a1, a2, ecc, z in zip(m1s, m2s, a1zs, a2zs, eccs, zs)
     ]
 
@@ -197,32 +226,75 @@ def pdets_from_masses_spins(
 def main():
     samples = 200000
     output = "./pdet_with_TaylorF2Ecc_uniform_injections.hdf5"
-    zmax = 4.0
 
-    m1s = np.random.uniform(0.5, 100.0, samples)
-    m2s = np.random.uniform(0.5, 100.0, samples)
-    a1zs = np.random.uniform(0, 1, samples)
-    a2zs = np.random.uniform(0, 1, samples)
-    eccs = np.random.uniform(0.0, 0.3, samples)
-    zs = np.random.uniform(0.0, zmax, samples)
+    params = {
+        "mass_1_source_min": 0.5,
+        "mass_1_source_max": 100.0,
+        "mass_2_source_min": 0.5,
+        "mass_2_source_max": 100.0,
+        "a_1_min": 0.0,
+        "a_1_max": 1.0,
+        "a_2_min": 0.0,
+        "a_2_max": 1.0,
+        "eccentricity_min": 0.0,
+        "eccentricity_max": 0.3,
+        "redshift_min": 0.0,
+        "redshift_max": 2.3,
+    }
 
-    volume = (100.0 - 0.5)**2 * 1.0**2 * 0.3 * zmax  # uniform priors in all params
+    m1s = np.random.uniform(
+        params["mass_1_source_min"], params["mass_1_source_max"], samples
+    )
+    m2s = np.random.uniform(
+        params["mass_2_source_min"], params["mass_2_source_max"], samples
+    )
+    a1zs = np.random.uniform(params["a_1_min"], params["a_1_max"], samples)
+    a2zs = np.random.uniform(params["a_2_min"], params["a_2_max"], samples)
+    eccs = np.random.uniform(
+        params["eccentricity_min"], params["eccentricity_max"], samples
+    )
+    zs = np.random.uniform(params["redshift_min"], params["redshift_max"], samples)
+
+    volume = (
+        (params["mass_1_source_max"] - params["mass_1_source_min"])
+        * (params["mass_2_source_max"] - params["mass_2_source_min"])
+        * (params["a_1_max"] - params["a_1_min"])
+        * (params["a_2_max"] - params["a_2_min"])
+        * (params["eccentricity_max"] - params["eccentricity_min"])
+        * (params["redshift_max"] - params["redshift_min"])
+    )  # uniform priors in all params
     sampling_pdf = np.full(samples, 1.0 / volume)
 
-    pdets = pdets_from_masses_spins(m1s, m2s, a1zs, a2zs, eccs, zs, 12.0)
+    pdets = pdets_from_masses_spins(m1s, m2s, a1zs, a2zs, eccs, zs, 8.0)
 
     with h5py.File(output, "w") as f:
+        for key, value in params.items():
+            f.attrs[key] = value
         f.attrs["description"] = (
-            "This file contains the pdet values for a set of injections with uniform mass, spin, "
-            "eccentricity, and redshift distributions (z in [0, 4])."
+            "This file contains the pdet values for a population of binary systems "
+            "with uniform priors in mass, spin, eccentricity, and redshift. "
+            "The pdet values are computed using the TaylorF2Ecc waveform model "
+            "and the SimNoisePSDaLIGO175MpcT1800545 sensitivity model. "
+            f"The redshift is uniformly sampled from 0 to {params['redshift_max']}."
         )
+
         f.attrs["waveform"] = "TaylorF2Ecc"
         f.attrs["sensitivity"] = "SimNoisePSDaLIGO175MpcT1800545"
-        f.attrs["redshift_model"] = "Uniform in z from 0 to 4"
-        f.create_dataset("names", data=np.array(
-            ["mass_1_source", "mass_2_source", "a_1", "a_2", "eccentricity", "redshift"],
-            dtype="S"
-        ))
+        f.attrs["redshift_model"] = f"Uniform in z from 0 to {params['redshift_max']}"
+        f.create_dataset(
+            "names",
+            data=np.array(
+                [
+                    "mass_1_source",
+                    "mass_2_source",
+                    "a_1",
+                    "a_2",
+                    "eccentricity",
+                    "redshift",
+                ],
+                dtype="S",
+            ),
+        )
         f.create_dataset("mass_1_source", data=m1s)
         f.create_dataset("mass_2_source", data=m2s)
         f.create_dataset("a_1", data=a1zs)
@@ -231,6 +303,7 @@ def main():
         f.create_dataset("redshift", data=zs)
         f.create_dataset("sampling_pdf", data=sampling_pdf)
         f.create_dataset("pdet", data=pdets)
+
 
 if __name__ == "__main__":
     main()
