@@ -12,7 +12,7 @@ vts.train_regressor(
     depth=6,
     batch_size=1024,
     checkpoint_path="neural_" + filename,
-    epochs=500,
+    epochs=200,
     validation_split=0.1,
     learning_rate=1e-3,
 )

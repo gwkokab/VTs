@@ -280,7 +280,6 @@ def main():
 
         f.attrs["waveform"] = "TaylorF2Ecc"
         f.attrs["sensitivity"] = "SimNoisePSDaLIGO175MpcT1800545"
-        f.attrs["redshift_model"] = f"Uniform in z from 0 to {params['redshift_max']}"
         f.create_dataset(
             "names",
             data=np.array(
