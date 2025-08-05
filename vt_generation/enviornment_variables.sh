@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export CUDA_VISIBLE_DEVICES=1
+export CUDA_VISIBLE_DEVICES=0,1
 export NPROC=16
 #export OPENBLAS_NUM_THREADS=1
 #export XLA_FLAGS="--xla_cpu_multi_thread_eigen=false"
