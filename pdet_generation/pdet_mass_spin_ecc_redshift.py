@@ -229,12 +229,12 @@ def main():
 
     params = {
         "mass_1_source_min": 0.5,
-        "mass_1_source_max": 100.0,
+        "mass_1_source_max": 200.0,
         "mass_2_source_min": 0.5,
-        "mass_2_source_max": 100.0,
-        "a_1_min": 0.0,
+        "mass_2_source_max": 200.0,
+        "a_1_min": -1.0, # s1z component, not the magnitude
         "a_1_max": 1.0,
-        "a_2_min": 0.0,
+        "a_2_min": -1.0,
         "a_2_max": 1.0,
         "eccentricity_min": 0.0,
         "eccentricity_max": 0.3,
