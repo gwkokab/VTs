@@ -1,12 +1,12 @@
 from gwkokab import vts
 
-filename = "pdet_mass_spin_ecc.hdf5"
+filename = "pdet_with_mass_spin.hdf5"
 filepath = "./" + filename
 
 
 vts.train_regressor(
     data_path=filepath,
-    input_keys=["mass_1_source","mass_2_source","a_1","a_2","eccentricity","redshift"],
+    input_keys=["mass_1_source","mass_2_source","a_1","a_2","redshift"],
     output_keys=["pdet"],
     width_size=256,
     depth=6,
